@@ -7,6 +7,7 @@ int main() {
     cbreak();
     timeout(0);
     keypad(stdscr, TRUE);
+    curs_set(FALSE);
 
     int max_y, max_x;
     getmaxyx(stdscr, max_y, max_x);
@@ -16,6 +17,7 @@ int main() {
     int p2_y = p1_y;
     int ball_x = max_x / 2, ball_y = max_y / 2;
     int dx = 1, dy = 1;
+    int score1 = 0, score2 = 0;
 
     while (1) {
         clear();
@@ -35,7 +37,13 @@ int main() {
         if (ball_x == 3 && ball_y >= p1_y && ball_y <= p1_y + paddle_height) dx *= -1;
         if (ball_x == max_x - 4 && ball_y >= p2_y && ball_y <= p2_y + paddle_height) dx *= -1;
 
-        if (ball_x <= 0 || ball_x >= max_x - 1) {
+        if (ball_x <= 0) {
+            score2++;
+            ball_x = max_x / 2;
+            ball_y = max_y / 2;
+        }
+        if (ball_x >= max_x - 1) {
+            score1++;
             ball_x = max_x / 2;
             ball_y = max_y / 2;
         }
@@ -46,6 +54,8 @@ int main() {
         }
 
         mvaddch(ball_y, ball_x, 'O');
+        
+        mvprintw(0, max_x / 2 - 5, " %d : %d ", score1, score2);
 
         refresh();
         usleep(30000);
