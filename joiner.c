@@ -5,44 +5,16 @@
 #include <string.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include "joiner.h"
+#include "shared.h"
 
 #define WIDTH 80
 #define HEIGHT 24
 #define PADDLE_LENGTH 4
 #define PORT 8080
-#define host_IP "127.0.0.1" 
+#define HOST_IP "127.0.0.1" 
 
-int host_fd;
-
-void send_int(int val) {
-    write(host_fd, &val, sizeof(int));
-}
-
-int recv_int() {
-    int val;
-    int n = read(host_fd, &val, sizeof(int));
-    if (n <= 0) {
-        endwin();
-        perror("Connection lost");
-        exit(1);
-    }
-    return val;
-}
-
-void draw(int ball_x, int ball_y, int p1_y, int p2_y, int score1, int score2) {
-    clear();
-    mvprintw(0, WIDTH/2 - 5, "%d : %d", score1, score2);
-
-    for (int i = 0; i < PADDLE_LENGTH; i++) {
-        mvaddch(p1_y + i, 2, '|');
-        mvaddch(p2_y + i, WIDTH - 3, '|');
-    }
-
-    mvaddch(ball_y, ball_x, 'O');
-    refresh();
-}
-
-int main() {
+void run_joiner() {
     initscr();
     noecho();
     cbreak();
@@ -56,11 +28,12 @@ int main() {
     int score1 = 0, score2 = 0;
 
     struct sockaddr_in host_addr;
+    int host_fd;
     host_fd = socket(AF_INET, SOCK_STREAM, 0);
 
     host_addr.sin_family = AF_INET;
     host_addr.sin_port = htons(PORT);
-    inet_pton(AF_INET, host_IP, &host_addr.sin_addr);
+    inet_pton(AF_INET, HOST_IP, &host_addr.sin_addr);
 
     printw("Connecting to host...\n");
     refresh();
@@ -76,13 +49,13 @@ int main() {
         if (ch == 'w' && p2_y > 1) p2_y--;
         if (ch == 's' && p2_y + PADDLE_LENGTH < HEIGHT - 1) p2_y++;
 
-        send_int(p2_y);
+        send_pos(host_fd, p2_y);
 
-        p1_y   = recv_int();
-        ball_x = recv_int();
-        ball_y = recv_int();
-        score1 = recv_int();
-        score2 = recv_int();
+        p1_y   = recv_pos(host_fd);
+        ball_x = recv_pos(host_fd);
+        ball_y = recv_pos(host_fd);
+        score1 = recv_pos(host_fd);
+        score2 = recv_pos(host_fd);
 
         draw(ball_x, ball_y, p1_y, p2_y, score1, score2);
         usleep(30000);
@@ -90,5 +63,4 @@ int main() {
 
     endwin();
     close(host_fd);
-    return 0;
 }

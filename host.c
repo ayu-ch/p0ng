@@ -6,38 +6,15 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <fcntl.h>
+#include "host.h"
+#include "shared.h"
 
 #define WIDTH 80
 #define HEIGHT 24
 #define PADDLE_LENGTH 4
 #define PORT 8080
 
-int client_fd;
-
-void send_int(int val) {
-    write(client_fd, &val, sizeof(int));
-}
-
-int recv_paddle_pos() {
-    int p2_y;
-    read(client_fd, &p2_y, sizeof(int));
-    return p2_y;
-}
-
-void draw(int ball_x, int ball_y, int p1_y, int p2_y, int score1, int score2) {
-    clear();
-    mvprintw(0, WIDTH/2 - 5, "%d : %d", score1, score2);
-
-    for (int i = 0; i < PADDLE_LENGTH; i++) {
-        mvaddch(p1_y + i, 2, '|');
-        mvaddch(p2_y + i, WIDTH - 3, '|');
-    }
-
-    mvaddch(ball_y, ball_x, 'O');
-    refresh();
-}
-
-int main() {
+void run_host() {
     initscr();
     noecho();
     cbreak();
@@ -54,18 +31,18 @@ int main() {
     struct sockaddr_in host_addr, cli_addr;
     socklen_t cli_len = sizeof(cli_addr);
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
+    int joiner_fd;
     host_addr.sin_family = AF_INET;
     host_addr.sin_addr.s_addr = INADDR_ANY;
     host_addr.sin_port = htons(PORT);
 
     bind(sockfd, (struct sockaddr *)&host_addr, sizeof(host_addr));
     listen(sockfd, 1);
-    printw("Waiting for client to connect...\n");
+    printw("Waiting for joiner to connect...\n");
     refresh();
-    client_fd = accept(sockfd, (struct sockaddr *)&cli_addr, &cli_len);
+    joiner_fd = accept(sockfd, (struct sockaddr *)&cli_addr, &cli_len);
 
-    if (client_fd < 0) {
+    if (joiner_fd < 0) {
         endwin();
         perror("Accept failed");
         exit(1);
@@ -76,7 +53,7 @@ int main() {
         if (ch == 'w' && p1_y > 1) p1_y--;
         if (ch == 's' && p1_y + PADDLE_LENGTH < HEIGHT - 1) p1_y++;
 
-        p2_y = recv_paddle_pos();
+        p2_y = recv_pos(joiner_fd);
 
 
         ball_x += dx;
@@ -98,11 +75,11 @@ int main() {
             ball_y = HEIGHT / 2;
         }
 
-        send_int(p1_y);
-        send_int(ball_x);
-        send_int(ball_y);
-        send_int(score1);
-        send_int(score2);
+        send_pos(joiner_fd, p1_y);
+        send_pos(joiner_fd, ball_x);
+        send_pos(joiner_fd, ball_y);
+        send_pos(joiner_fd, score1);
+        send_pos(joiner_fd, score2);
 
         draw(ball_x, ball_y, p1_y, p2_y, score1, score2);
 
@@ -110,8 +87,6 @@ int main() {
     }
 
     endwin();
-    close(client_fd);
+    close(joiner_fd);
     close(sockfd);
-
-    return 0;
 }
